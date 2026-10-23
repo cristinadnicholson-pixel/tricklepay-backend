@@ -69,10 +69,12 @@ export interface CancellationInput {
 export type ApplyResult = "applied" | "duplicate" | "missing";
 
 export interface StreamFilter {
+  ids?: bigint[];
   sender?: string;
   recipient?: string;
   token?: string;
   cancelled?: boolean;
+  status?: "pending" | "streaming" | "completed" | "cancelled";
   cursor?: bigint;
   limit?: number;
   offset?: number;
@@ -264,13 +266,43 @@ export async function getStream({ streamId }: { streamId: bigint }): Promise<Str
 
 // Repository naming convention: use `get` for one record, `list` for
 // collections, `count` for totals, and action verbs for mutations.
-function whereFromFilter(filter: StreamFilter): Prisma.StreamWhereInput {
+
+// The database-side predicate for each lifecycle status, mirroring the summary
+// endpoint logic. Used for both filtering and aggregation.
+function statusWhereFilter(status: "pending" | "streaming" | "completed" | "cancelled", now: bigint): Prisma.StreamWhereInput {
+  switch (status) {
+    case "cancelled":
+      return { cancelled: true };
+    case "pending":
+      return { cancelled: false, startTime: { gt: now } };
+    case "completed":
+      return { cancelled: false, endTime: { lte: now } };
+    case "streaming":
+      return { cancelled: false, startTime: { lte: now }, endTime: { gt: now } };
+  }
+}
+
+function whereFromFilter(filter: StreamFilter, now?: bigint): Prisma.StreamWhereInput {
   const where: Prisma.StreamWhereInput = {};
   if (filter.sender) where.sender = filter.sender;
   if (filter.recipient) where.recipient = filter.recipient;
   if (filter.token) where.token = filter.token;
   if (filter.cancelled !== undefined) where.cancelled = filter.cancelled;
-  if (filter.cursor !== undefined) where.streamId = { lt: filter.cursor };
+  if (filter.ids !== undefined || filter.cursor !== undefined) {
+    where.streamId = {
+      // PostgreSQL BIGINT cannot store the upper half of uint64. Those valid
+      // contract ids cannot match a row, so omit them before binding parameters.
+      ...(filter.ids === undefined ? {} : { in: filter.ids.filter((id) => id <= 9223372036854775807n) }),
+      ...(filter.cursor === undefined ? {} : { lt: filter.cursor }),
+    };
+  }
+
+  // Apply status filter using the same predicates as the summary endpoint
+  if (filter.status && now !== undefined) {
+    const statusFilter = statusWhereFilter(filter.status, now);
+    Object.assign(where, statusFilter);
+  }
+
   return where;
 }
 
@@ -303,7 +335,7 @@ export function statusWhere(status: StreamStatus, now: bigint): Prisma.StreamWhe
   }
 }
 
-export async function listStreams(filter: StreamFilter): Promise<StreamListResult> {
+export async function listStreams(filter: StreamFilter, now?: bigint): Promise<StreamListResult> {
   const limit = filter.limit ?? 50;
   const useCursor = filter.cursor !== undefined;
   const take = limit + 1;
@@ -311,7 +343,7 @@ export async function listStreams(filter: StreamFilter): Promise<StreamListResul
 
   const rows = await withQueryTimeout(
     prisma.stream.findMany({
-      where: whereFromFilter(filter),
+      where: whereFromFilter(filter, now),
       orderBy: orderByFromFilter(filter),
       take,
       skip,
@@ -329,8 +361,8 @@ export async function listStreams(filter: StreamFilter): Promise<StreamListResul
 
 // Total number of streams matching the filter, ignoring limit and offset, so a
 // client can tell how many pages exist.
-export async function countStreams(filter: StreamFilter): Promise<number> {
-  return withQueryTimeout(prisma.stream.count({ where: whereFromFilter(filter) }));
+export async function countStreams(filter: StreamFilter, now?: bigint): Promise<number> {
+  return withQueryTimeout(prisma.stream.count({ where: whereFromFilter(filter, now) }));
 }
 
 export interface StreamAggregate {
