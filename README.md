@@ -176,11 +176,11 @@ and why, see [docs/response-headers.md](docs/response-headers.md).
 | `GET` | `/status` | Indexer progress against the chain. Response includes `Cache-Control: no-store` to prevent stale lag readings. |
 | `GET` | `/streams` | List streams. Query params: `sender`, `recipient`, `token`, `limit`, `offset`, `includeTotal`, `cancelled`, `cursor`. Address filters accept lowercase and padded spellings and are normalized before matching. `total` is only included when `includeTotal=true`; `cancelled` filters by cancellation status when given, and is omitted to return both. Repeating a parameter is rejected with `400` — see [Query parameters](#query-parameters). |
 | `GET` | `/streams/summary` | Aggregate counts and exact total amounts per status (`pending`, `streaming`, `completed`, `cancelled`). Useful for dashboard overview displays without fetching individual streams. Response is cached for 30 seconds. |
-| `GET` | `/streams/:id` | A single stream by id. Also available as `HEAD`. |
-| `GET` | `/streams/:id/events` | The v1-compatible array response for a single stream's indexed event history, in ascending chain order. Optional `kind` filter (`created`, `withdrawn`, `cancelled`). |
-| `GET` | `/v2/streams/:id/events` | Paginated stream event history. Query params: `limit` (default 50, maximum 100), opaque `cursor`, and optional `kind`. Returns `{ events, limit, nextCursor? }`. |
-| `GET` | `/streams/:id/schedule` | Evenly spaced vesting curve points for charting, with the cliff instant included. Optional `points` query param (2–100, default 50). |
-| `GET` | `/accounts/:address/summary` | Incoming and outgoing stream counts and amount totals for a single Stellar address. |
+| `GET` | `/streams/{id}` | A single stream by id. Also available as `HEAD`. |
+| `GET` | `/streams/{id}/events` | The v1-compatible array response for a single stream's indexed event history, in ascending chain order. Optional `kind` filter (`created`, `withdrawn`, `cancelled`). |
+| `GET` | `/v2/streams/{id}/events` | Paginated stream event history. Query params: `limit` (default 50, maximum 100), opaque `cursor`, and optional `kind`. Returns `{ events, limit, nextCursor? }`. |
+| `GET` | `/streams/{id}/schedule` | Evenly spaced vesting curve points for charting, with the cliff instant included. Optional `points` query param (2–100, default 50). |
+| `GET` | `/accounts/{address}/summary` | Incoming and outgoing stream counts and amount totals for a single Stellar address. |
 | `GET` | `/tokens` | Each distinct streamed token, with its stream count and total escrowed amount. |
 | `GET` | `/metrics` | Prometheus metrics. Set `METRICS_TOKEN` to require `Authorization: Bearer <token>`. |
 
@@ -472,9 +472,7 @@ The `GET /streams` endpoint supports pagination through the following query para
 **Note:** When `cursor` is provided, `offset` is ignored and offset ceiling checks are skipped. Use cursor-based pagination for stable results under concurrent inserts.
 
 **Revalidation:** `GET /streams` responses carry a weak `ETag` derived from the response body. Send it back in an `If-None-Match` header to receive `304 Not Modified` with no body when nothing changed, saving bandwidth on repeat polls. The `ETag` changes whenever any returned field changes (streams, `total`, `nextCursor`, or pagination).
-| `GET` | `/streams/summary` | Aggregate counts and exact total amounts per status (`pending`, `streaming`, `completed`, `cancelled`). Useful for dashboard overview displays without fetching individual streams. Response is cached for 30 seconds. |
-| `GET` | `/streams/:id` | A single stream by id. |
-| `GET` | `/metrics` | Prometheus metrics. Set `METRICS_TOKEN` to require `Authorization: Bearer <token>`. |
+
 When `cursor` is provided, `offset` is ignored and the offset ceiling check
 below is skipped.
 

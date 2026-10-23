@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { vi } from "vitest";
 
+import { metricsRoutes } from "../../src/routes/metrics.js";
+
+import { rootRoutes } from "../../src/routes/root.js";
+
 import { statusRoutes } from "../../src/routes/status.js";
 
 import { streamRoutes } from "../../src/routes/streams.js";
@@ -10,8 +14,10 @@ import { buildServer } from "../../src/server.js";
 
 async function getSpec() {
   const app = await buildServer();
+  await app.register(rootRoutes({ network: "testnet", contractId: "C123" } as any));
   await app.register(streamRoutes);
   await app.register(statusRoutes);
+  await app.register(metricsRoutes, { token: undefined });
   await app.ready();
 
   const response = await app.inject({ method: "GET", url: "/docs/json" });
@@ -24,8 +30,10 @@ async function getSpec() {
 describe("GET /docs/json (OpenAPI spec)", () => {
   it("responds with 200 and application/json content-type", async () => {
     const app = await buildServer();
+    await app.register(rootRoutes({ network: "testnet", contractId: "C123" } as any));
     await app.register(streamRoutes);
     await app.register(statusRoutes);
+    await app.register(metricsRoutes, { token: undefined });
     await app.ready();
 
     const response = await app.inject({ method: "GET", url: "/docs/json" });
@@ -57,8 +65,10 @@ describe("GET /docs/json (OpenAPI spec)", () => {
 
   it("includes a servers entry built from configuration", async () => {
     const app = await buildServer({ publicBaseUrl: "https://api.tricklepay.example" });
+    await app.register(rootRoutes({ network: "testnet", contractId: "C123" } as any));
     await app.register(streamRoutes);
     await app.register(statusRoutes);
+    await app.register(metricsRoutes, { token: undefined });
     await app.ready();
 
     const response = await app.inject({ method: "GET", url: "/docs/json" });
@@ -72,8 +82,10 @@ describe("GET /docs/json (OpenAPI spec)", () => {
 
   it("defaults the server URL to the configured host and port", async () => {
     const app = await buildServer({ host: "0.0.0.0", port: 4321 });
+    await app.register(rootRoutes({ network: "testnet", contractId: "C123" } as any));
     await app.register(streamRoutes);
     await app.register(statusRoutes);
+    await app.register(metricsRoutes, { token: undefined });
     await app.ready();
 
     const response = await app.inject({ method: "GET", url: "/docs/json" });

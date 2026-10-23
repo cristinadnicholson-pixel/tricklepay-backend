@@ -254,6 +254,14 @@ export async function buildServer(config?: Partial<Config>): Promise<FastifyInst
   // which keeps this builder synchronous for its callers.
   void app.register(cors, {
     origin: corsOrigin,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Request-Id",
+      "Accept",
+      "X-Requested-With",
+    ],
   });
 
   // Compress responses at or above the configured threshold when the client

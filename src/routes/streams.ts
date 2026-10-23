@@ -720,6 +720,8 @@ export async function streamRoutes(
         return sendError(reply, request, 400, "VALIDATION_ERROR", "invalid cursor");
       }
 
+      const validCursorEventId = cursorEventId ?? undefined;
+
       const stream = await getStream({ streamId });
       if (!stream) {
         return sendError(reply, request, 404, "NOT_FOUND", "stream not found");
@@ -729,7 +731,7 @@ export async function streamRoutes(
       const page = await listIndexedEventsPage(
         streamId,
         limit,
-        cursorEventId,
+        validCursorEventId,
         kind as IndexedEventKind | undefined,
       );
       reply.header("Cache-Control", "public, max-age=30");

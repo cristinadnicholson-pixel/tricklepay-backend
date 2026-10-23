@@ -39,6 +39,7 @@ export type ApiErrorCode =
   | "NOT_FOUND"
   | "RATE_LIMITED"
   | "REQUEST_ERROR"
+  | "SERVICE_UNAVAILABLE"
   | "INTERNAL_SERVER_ERROR";
 
 /**
@@ -49,6 +50,7 @@ export function errorCodeForStatus(statusCode: number): ApiErrorCode {
   if (statusCode === 400) return "VALIDATION_ERROR";
   if (statusCode === 404) return "NOT_FOUND";
   if (statusCode === 429) return "RATE_LIMITED";
+  if (statusCode === 503) return "SERVICE_UNAVAILABLE";
   if (statusCode >= 500) return "INTERNAL_SERVER_ERROR";
   return "REQUEST_ERROR";
 }

@@ -9,9 +9,30 @@
 
 import type { FastifyError, FastifyInstance } from "fastify";
 
+import { QueryTimeoutError } from "./db.js";
 import { errorCodeForStatus, redactErrorMessage } from "./error-redaction.js";
 
 import { REQUEST_ID_HEADER } from "./request-id.js";
+
+function isDatabaseUnavailableError(err: unknown): boolean {
+  if (err instanceof QueryTimeoutError) return true;
+
+  if (err instanceof Error) {
+    const message = err.message.toLowerCase();
+    return (
+      message.includes("p1001") ||
+      message.includes("p1002") ||
+      message.includes("ecconnrefused") ||
+      message.includes("can't reach database server") ||
+      message.includes("database server") ||
+      message.includes("connect econnrefused") ||
+      message.includes("password authentication failed") ||
+      message.includes("connection refused")
+    );
+  }
+
+  return false;
+}
 
 /**
  * Registers the global error handler and the not-found handler on `app`.
@@ -26,12 +47,18 @@ export function registerErrorHandlers(app: FastifyInstance): void {
   // reach the client (#74); the original error is logged server-side with
   // the request id for diagnosis.
   app.setErrorHandler((err: FastifyError, request, reply) => {
+    const isDatabaseError = isDatabaseUnavailableError(err);
     const statusCode =
-      typeof err.statusCode === "number" && err.statusCode >= 400
-        ? err.statusCode
-        : 500;
+      isDatabaseError
+        ? 503
+        : typeof err.statusCode === "number" && err.statusCode >= 400
+          ? err.statusCode
+          : 500;
     if (statusCode >= 500) {
       request.log.error({ err }, "request failed");
+    }
+    if (isDatabaseError) {
+      void reply.header("Retry-After", "30");
     }
     const message =
       statusCode >= 500
@@ -44,7 +71,7 @@ export function registerErrorHandlers(app: FastifyInstance): void {
     });
   });
 
-  // Unmatched routes bypass the error handler, so they get their own handler —
+  // Unmatched routes bypass the error handler, so they get their own handler ï¿½
   // with the request id attached like every other error response.
   app.setNotFoundHandler((request, reply) => {
     void reply.status(404).send({

@@ -594,6 +594,7 @@ export const apiErrorSchema = {
         "NOT_FOUND",
         "RATE_LIMITED",
         "REQUEST_ERROR",
+        "SERVICE_UNAVAILABLE",
         "INTERNAL_SERVER_ERROR",
       ],
       description:

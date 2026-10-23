@@ -95,14 +95,14 @@ export async function listIndexedEventsPage(
   if (kind !== undefined) where.kind = kind;
   if (cursorEventId !== undefined) where.eventId = { gt: cursorEventId };
 
-  const rows = await withQueryTimeout(
+  const rows = (await withQueryTimeout(
     (prisma as any).indexedEvent.findMany({
       where,
       orderBy: { eventId: "asc" },
       take: limit + 1,
     }),
-  );
-  const events = rows.slice(0, limit) as IndexedEventRecord[];
+  )) as IndexedEventRecord[];
+  const events = rows.slice(0, limit);
   return { events, hasMore: rows.length > limit };
 }
 
